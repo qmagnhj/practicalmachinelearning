@@ -1,0 +1,172 @@
+---
+title: "Prediction of Biceps Curl Execution Quality"
+author: Magnus  Hjelmfeldt
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(include = FALSE)
+knitr::opts_chunk$set(cache=TRUE)
+```
+
+### Selecting prediction method
+
+From the course lectures we learn that Random Forests are among the most
+accurate methods for prediction and that the downsides are mainly speed and
+the interpredabilty. Since the assignment does not put restrictions on either
+speed or interpretability of the model, Random Forests is choosen as prediction
+method.
+
+### Exploring the data set
+```{r}
+trainingRaw <- read.csv("pml-training.csv")
+trdims   <- dim(trainingRaw)
+trnames  <- names(trainingRaw)
+```
+
+The raw data in the file [pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) 
+consists of `r trdims[1]` observations and `r trdims[2]` variables. The very 
+first step taken is to sub-section off the data into a training and test subset, 
+with about 75% in the training and 25% in the test set. To select which 
+variables to include in the building of the prediction model, the outcome 
+variable, 'classe', is removed from the training data set. Aditionally it can be 
+observed that the first seven columns of the data set (see appendix for the 
+variable names) seems to be of more of an information nature, either about the 
+subject or about the data collection. 
+
+```{r}
+library(caret)
+
+# create a training and a test sub set with 75% in training set
+set.seed(1234)
+trainSet <- createDataPartition(y=trainingRaw$classe, p=0.75, list=FALSE)
+training <- trainingRaw[trainSet,]
+testing  <- trainingRaw[-trainSet,]
+
+# classe is outcome
+training.Y <- training$classe
+
+# First 7 columns are info and classe is outcome
+training.X <- subset(training, select = -c(classe, 1:7))
+names.varsInfo <- names(training[,1:7])
+
+# NZV analysis
+nzvVars <- nearZeroVar(training.X, saveMetrics = T)
+# Columns left after NZV
+training.afterNZV <- training.X[,!nzvVars$nzv]
+```
+
+After removing the seven information variables, a near zero value anaylysis is 
+run to potentially exclude further variables. There are 
+`r sum(nzvVars$nzv)` variables with almost no variance (see variable names in 
+appendix). After removing these variables there are 
+`r dim(training.afterNZV)[2]` variables left. To check the completeness of data 
+for the remaining columns, a plot of the ratio of missing values is created 
+(with columns reordered for decending order of incompeteness).
+
+```{r, include=TRUE, fig.height=4}
+# Check which columns have missing values
+NAvalsVars <- sapply(training.afterNZV, function(x) mean(is.na(x)))
+plot(NAvalsVars[order(NAvalsVars,decreasing = T)], ylab = "Incompleteness", 
+     xlab = "")
+
+# Columns left with missing values cols removed
+training.afterRmNA <- training.afterNZV[,NAvalsVars==0]
+```
+
+As seen in the above chart, about 45 variables are missing data for more than
+95% of the observations. Since the portion of missing data for these variables
+is so large, rather than trying to impute data, these variables are  removed 
+(see variable names in appendix) and left is a dataset with 
+`r dim(training.afterRmNA)[2]` variables. For the remaining variables the data 
+is fully complete, so no impution is needed. Since Random Forests is not 
+sensitive to skewed variables, no further analysis or pre-processing of the 
+variables are undertaken, and the remaining variables are selected to be 
+included in the model. The selected variables are:
+```{r, include=TRUE}
+names(training.afterRmNA)
+```
+
+
+### Performance tuning of Random Forests
+Following the advice in the post [Improving Performance of Random Forest in caret::train()](https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-randomForestPerformance.md) an adjustment to the standard train function in caret is used 
+for training the model, where the resampling method is changed from the standard
+bootstrap, to a 10-fold cross validation.  
+
+```{r}
+# The configuration in this section is a copied from the performance improvement 
+# suggestions in the post:
+# https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-randomForestPerformance.md
+
+library(parallel)
+library(doParallel)
+
+set.seed(780124)
+
+# Configure parallel processing
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+# Configure trainControl object
+fitControl <- trainControl(method = "cv", number = 10, allowParallel = TRUE)
+
+# Train the model
+fitrf <- train(training.afterRmNA, training.Y, method="rf", trControl = fitControl)
+
+# De-register parallel processing cluster
+stopCluster(cluster)
+registerDoSEQ()
+
+```
+
+### Resulting model
+Below is the outcome of the summary of the trained model and its confusion matrix.
+```{r, include=TRUE}
+fitrf
+confusionMatrix.train(fitrf)
+```
+
+### Out of Sample Error and Cross Validation
+```{r}
+# Setting up the tesing sub set the same way as the training sub set 
+testing.Y         <- testing$classe
+testing.X         <- subset(testing, select = -c(classe, 1:7))
+testing.afterNZV  <- testing.X[,!nzvVars$nzv]
+testing.afterRmNA <- testing.afterNZV[,NAvalsVars==0]
+testpred <- predict(fitrf,testing.afterRmNA)
+ooser <- round((1-confusionMatrix(testpred, testing.Y)$overall["Accuracy"])*100,2)
+```
+
+To get the out of sample error rate the model fit is applied to the test sub 
+set of the data, and the error rate is calculated as 1-Accuracy, which yields: 
+`r ooser`%.
+
+As mentioned above, a 10-fold Cross Validation is used as resampling method,
+instead of the standard bootstrap resampling.
+
+### Performance on test data
+The above model fit, which was created with seed set to 780124, rendered a
+score of 20/20 on the test data quiz (i.e. on the data in pml-testing.csv).
+
+
+## Appendix
+Below are the names of the variables that were excluded at different stages
+in the data exploration.  
+
+### Information columns (one through seven)
+```{r, include=TRUE}
+names(training[,1:7])
+
+```
+
+### Near Zero Variance Variables
+```{r, include=TRUE}
+names(training.X[,nzvVars$nzv])
+```
+
+### Variables with high ratio of missing values
+```{r, include=TRUE}
+names(training.afterNZV[,NAvalsVars!=0])
+```
+
