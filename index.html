@@ -158,42 +158,26 @@ $(document).ready(function () {
 <div id="resulting-model" class="section level3">
 <h3>Resulting model</h3>
 <p>Below is the outcome of the summary of the trained model and its confusion matrix.</p>
-<pre><code>## Random Forest 
+<pre><code>## 
+## Call:
+##  randomForest(x = x, y = y, mtry = param$mtry) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 2
 ## 
-## 14718 samples
-##    52 predictor
-##     5 classes: 'A', 'B', 'C', 'D', 'E' 
-## 
-## No pre-processing
-## Resampling: Cross-Validated (10 fold) 
-## Summary of sample sizes: 13244, 13245, 13247, 13247, 13247, 13247, ... 
-## Resampling results across tuning parameters:
-## 
-##   mtry  Accuracy   Kappa    
-##    2    0.9925944  0.9906309
-##   27    0.9925265  0.9905457
-##   52    0.9888567  0.9859040
-## 
-## Accuracy was used to select the optimal model using the largest value.
-## The final value used for the model was mtry = 2.</code></pre>
-<pre><code>## Cross-Validated (10 fold) Confusion Matrix 
-## 
-## (entries are percentual average cell counts across resamples)
-##  
-##           Reference
-## Prediction    A    B    C    D    E
-##          A 28.4  0.2  0.0  0.0  0.0
-##          B  0.0 19.2  0.1  0.0  0.0
-##          C  0.0  0.0 17.3  0.3  0.0
-##          D  0.0  0.0  0.0 16.1  0.0
-##          E  0.0  0.0  0.0  0.0 18.3
-##                             
-##  Accuracy (average) : 0.9926</code></pre>
+##         OOB estimate of  error rate: 0.62%
+## Confusion matrix:
+##      A    B    C    D    E  class.error
+## A 4182    3    0    0    0 0.0007168459
+## B   19 2824    5    0    0 0.0084269663
+## C    0   17 2549    1    0 0.0070120764
+## D    0    0   36 2374    2 0.0157545605
+## E    0    0    1    7 2698 0.0029563932</code></pre>
 </div>
-<div id="out-of-sample-error-and-cross-validation" class="section level3">
-<h3>Out of Sample Error and Cross Validation</h3>
-<p>To get the out of sample error rate the model fit is applied to the test sub set of the data, and the error rate is calculated as 1-Accuracy, which yields: 0.67%.</p>
-<p>As mentioned above, a 10-fold Cross Validation is used as resampling method, instead of the standard bootstrap resampling.</p>
+<div id="cross-validated-out-of-sample-error" class="section level3">
+<h3>Cross Validated Out of Sample Error</h3>
+<p>The cross validated out of sample error rate is the out-of-bag (OOB) estimate of error rate, calculated by the train function in the caret package, i.e: 0.62% as seen in the summary above.</p>
+<p>(The out of sample error rate can also be evaluated on the test sub set from the training set, calculated as 1-Accuracy, which yields: 0.61%.)</p>
 </div>
 <div id="performance-on-test-data" class="section level3">
 <h3>Performance on test data</h3>

@@ -123,11 +123,11 @@ registerDoSEQ()
 ### Resulting model
 Below is the outcome of the summary of the trained model and its confusion matrix.
 ```{r, include=TRUE}
-fitrf
-confusionMatrix.train(fitrf)
+fitrf$finalModel
+
 ```
 
-### Out of Sample Error and Cross Validation
+### Cross Validated Out of Sample Error
 ```{r}
 # Setting up the tesing sub set the same way as the training sub set 
 testing.Y         <- testing$classe
@@ -138,12 +138,12 @@ testpred <- predict(fitrf,testing.afterRmNA)
 ooser <- round((1-confusionMatrix(testpred, testing.Y)$overall["Accuracy"])*100,2)
 ```
 
-To get the out of sample error rate the model fit is applied to the test sub 
-set of the data, and the error rate is calculated as 1-Accuracy, which yields: 
-`r ooser`%.
+The cross validated out of sample error rate is the out-of-bag (OOB) estimate
+of error rate, calculated by the train function in the caret package, i.e: 0.62% 
+as seen in the summary above.
 
-As mentioned above, a 10-fold Cross Validation is used as resampling method,
-instead of the standard bootstrap resampling.
+(The out of sample error rate can also be evaluated on the test sub 
+set from the training set, calculated as 1-Accuracy, which yields: `r ooser`%.)
 
 ### Performance on test data
 The above model fit, which was created with seed set to 780124, rendered a
